@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Demostrador de Modelo IA - Clasificación de Imágenes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.20.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.5/dist/teachablemachine-image.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+
+    <main class="main-grid">
+      
+      <section class="card input-card">
+        <div class="tab-header">
+          <button class="tab-btn active" id="tab-webcam-btn" data-tab="webcam">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 7l-7 5 7 5V7z"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+            Webcam
+          </button>
+          <button class="tab-btn" id="tab-upload-btn" data-tab="upload">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Subir Foto
+          </button>
+        </div>
+
+        <div class="tab-content active" id="webcam-tab">
+          <div class="viewport-container">
+            <video id="webcam" autoplay playsinline muted></video>
+            <div class="viewport-placeholder" id="webcam-placeholder">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M23 7l-7 5 7 5V7z"/>
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+              </svg>
+              <p>Camara apagada. Presiona "Iniciar" para comenzar.</p>
+            </div>
+            <span class="live-badge hidden" id="live-badge">EN DIRECTO</span>
+          </div>
+
+          <div class="controls-row">
+            <button class="btn btn-primary" id="start-webcam-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              Iniciar Webcam
+            </button>
+            <button class="btn btn-secondary" id="stop-webcam-btn" disabled>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="6" width="12" height="12" rx="2"/>
+              </svg>
+              Parar
+            </button>
+            <button class="btn btn-accent" id="save-webcam-btn" disabled>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              Guardar Resultado
+            </button>
+          </div>
+        </div>
+
+        <div class="tab-content" id="upload-tab">
+          <div class="dropzone" id="dropzone">
+            <input type="file" id="image-input" accept="image/*" class="file-input">
+            <div class="dropzone-content" id="dropzone-prompt">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+              <p class="dropzone-title">Arrastra una imagen aquí o <span>explora tus archivos</span></p>
+              <p class="dropzone-subtitle">Soporta JPG, PNG, WEBP</p>
+            </div>
+            <div class="upload-preview-wrapper hidden" id="upload-preview-wrapper">
+              <img id="image-preview" alt="Vista previa" src="">
+            </div>
+          </div>
+          <div class="controls-row">
+            <button class="btn btn-accent" id="save-upload-btn" disabled>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              Guardar Resultado
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card results-card">
+        <div class="card-header">
+          <h2>Predicción del Modelo</h2>
+          <div class="model-status-badge" id="model-status">
+            <span class="status-dot loading"></span>
+            <span class="status-text">Cargando modelo...</span>
+          </div>
+        </div>
+
+        <div class="confidence-config">
+          <div class="confidence-header">
+            <label for="confidence-slider">Umbral de Confianza</label>
+            <span class="confidence-value" id="confidence-display">70%</span>
+          </div>
+          <input type="range" id="confidence-slider" min="0" max="100" value="70" step="5" class="slider">
+          <p class="confidence-help">Las detecciones que alcancen este porcentaje se marcarán como válidas.</p>
+        </div>
+
+        <div class="top-match-card" id="top-match-card">
+          <div class="top-match-header">
+            <span class="match-label">Detección Principal</span>
+            <span class="match-badge badge-pending" id="match-badge">Esperando...</span>
+          </div>
+          <div class="top-match-result">
+            <span class="class-name" id="top-class-name">--</span>
+            <span class="class-score" id="top-class-score">0.0%</span>
+          </div>
+        </div>
+
+        <div class="probabilities-section">
+          <h3>Probabilidades por Clase</h3>
+          <div class="class-bars" id="class-bars">
+            
+            <div class="class-bar-item placeholder-bar">
+              <div class="class-bar-info">
+                <span>Cargando clases...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <section class="card history-card">
+      <div class="card-header history-header">
+        <div class="history-title-group">
+          <h2>Historial de Resultados</h2>
+          <span class="history-count-badge" id="history-count">0</span>
+        </div>
+        <button class="btn btn-outline-danger btn-sm" id="clear-history-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+          Limpiar Historial
+        </button>
+      </div>
+
+      <div class="history-content">
+        <div class="history-grid" id="history-grid">
+          
+        </div>
+        <div class="empty-history" id="empty-history">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 8v4l3 3"/>
+            <circle cx="12" cy="12" r="9"/>
+          </svg>
+          <p>No hay resultados guardados en el historial.</p>
+          <span>Guarda los análisis de la webcam o fotos para revisarlos más tarde.</span>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
